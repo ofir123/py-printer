@@ -15,6 +15,7 @@ Printing everything for everyone!
 Usage
 -----
 | The perfect printer for Python 3!
+|
 | Just create a printer instance, pick your favorite colors and get to work!
 | PyPrinter supports all ANSI colors, and crazy encodings!
 | It also calculates the console width in order to wrap words properly.
