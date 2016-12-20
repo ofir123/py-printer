@@ -1,0 +1,5 @@
+include pyprinter/externals/ANSI/x64/ansicon.exe
+include pyprinter/externals/ANSI/x64/ANSI64.dll
+include pyprinter/externals/ANSI/x64/ANSI32.dll
+include pyprinter/externals/ANSI/x86/ansicon.exe
+include pyprinter/externals/ANSI/x86/ANSI32.dll
