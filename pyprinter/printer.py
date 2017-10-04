@@ -339,7 +339,10 @@ def _get_windows_console_width():
 
 
 def _get_linux_console_width():
-    return int(subprocess.check_output(['tput', 'cols']))
+    # Don't run tput if TERM is not defined, to prevent terminal-related errors.
+    if os.environ.get('TERM'):
+        return int(subprocess.check_output(['tput', 'cols'], stderr=subprocess.DEVNULL))
+    return 0
 
 
 def _in_qtconsole():
