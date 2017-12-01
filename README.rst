@@ -1,24 +1,25 @@
-PyPrinter
-=========
+py-printer
+==========
 Printing everything for everyone!
 
-.. image:: https://img.shields.io/pypi/v/PyPrinter.svg
-    :target: https://pypi.python.org/pypi/PyPrinter
+.. image:: https://img.shields.io/pypi/v/py-printer.svg
+    :target: https://pypi.python.org/pypi/py-printer
     :alt: Latest Version
 
-.. image:: https://travis-ci.org/ofir123/PyPrinter.svg
-   :target: https://travis-ci.org/ofir123/PyPrinter
+.. image:: https://travis-ci.org/ofir123/py-printer.svg
+   :target: https://travis-ci.org/ofir123/py-printer
    :alt: Travis CI build status
 
-:Project page: https://github.com/ofir123/PyPrinter
+:Project page: https://github.com/ofir123/py-printer
 
 Usage
 -----
 | The perfect printer for Python 3!
 |
 | Just create a printer instance, pick your favorite colors and get to work!
-| PyPrinter supports all ANSI colors, and crazy encodings!
+| py-printer supports all ANSI colors, and crazy encodings!
 | It also calculates the console width in order to wrap words properly.
+| And! It even works on a standard Windows console using the awesome ANSICON library.
 |
 
 .. code:: python
@@ -29,6 +30,9 @@ Usage
 
     # Write a simple line.
     printer.write_line(printer.YELLOW + 'Hello World!')
+
+    # Or use the color functions (nested coloring is also supported).
+    printer.write_line(printer.yellow('Hello World!'))
 
 .. image:: docs/images/simple.png
 

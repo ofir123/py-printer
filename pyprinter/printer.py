@@ -1,7 +1,8 @@
+import os
+import platform
+import re
 import sys
 import subprocess
-import os
-import re
 
 
 try:
@@ -45,6 +46,7 @@ class Printer(object):
     _ANSI_COLOR_CODE = _ANSI_COLOR_PREFIX + '[%s%dm'
     _DARK_CODE = '0;'
     _LIGHT_CODE = '1;'
+
     NORMAL = _ANSI_COLOR_CODE % (_DARK_CODE, 0)
     DARK_RED = _ANSI_COLOR_CODE % (_DARK_CODE, 31)
     DARK_GREEN = _ANSI_COLOR_CODE % (_DARK_CODE, 32)
@@ -60,6 +62,10 @@ class Printer(object):
     PURPLE = _ANSI_COLOR_CODE % (_LIGHT_CODE, 35)
     CYAN = _ANSI_COLOR_CODE % (_LIGHT_CODE, 36)
     WHITE = _ANSI_COLOR_CODE % (_LIGHT_CODE, 37)
+
+    _COLORS_LIST = ['dark_red', 'dark_green', 'dark_yellow', 'dark_blue', 'dark_purple', 'dark_cyan', 'grey', 'red',
+                    'green', 'yellow', 'blue', 'purple', 'cyan', 'white']
+
     _ANSI_COLOR_LENGTH = len(WHITE)
 
     def __init__(self, writer, colors=True, width_limit=True):
@@ -100,6 +106,7 @@ class Printer(object):
         # We take indent into account only in the inner group lines.
         max_line_length = console_width - len(self.LINE_SEP) - self._last_position - \
             (self.indents_sum if not self._is_first_line else self.indents_sum - self._indents[-1])
+
         lines = []
         for i, line in enumerate(original_lines):
             fixed_line = []
@@ -107,6 +114,7 @@ class Printer(object):
             line_index = 0
             while line_index < len(line):
                 c = line[line_index]
+
                 # Check if we're in a color block.
                 if self._colors and c == self._ANSI_COLOR_PREFIX and \
                         len(line) >= (line_index + self._ANSI_COLOR_LENGTH):
@@ -119,6 +127,7 @@ class Printer(object):
                         continue
                 fixed_line.append(line[line_index])
                 line_index += 1
+
                 # Create a new line, if max line is reached.
                 if len(fixed_line) >= max_line_length + (colors_counter * self._ANSI_COLOR_LENGTH):
                     # Special case in which we want to split right before the line break.
@@ -134,6 +143,7 @@ class Printer(object):
                     # Max line length has changed since the last position is now 0.
                     max_line_length = console_width - len(self.LINE_SEP) - self.indents_sum
                     self._is_first_line = False
+
             if len(fixed_line) > 0:
                 fixed_line = ''.join(fixed_line)
                 # If this line contains only color codes, attach it to the last line instead of creating a new one.
@@ -158,6 +168,7 @@ class Printer(object):
         # Then we split by using the console width.
         original_lines = text.splitlines(True)
         lines = self._split_lines(original_lines) if self._width_limit else original_lines
+
         # Print the new width-formatted lines.
         for line in lines:
             # Print indents only at line beginnings.
@@ -177,6 +188,7 @@ class Printer(object):
             # Update the last color used.
             if self._colors:
                 last_color = self._ANSI_REGEXP.findall(line)[-1]
+
         # Update last position (if there was no line break in the end).
         if len(lines) > 0:
             last_line = lines[-1]
@@ -191,7 +203,8 @@ class Printer(object):
                 self._is_first_line = False
         else:
             self._last_position = 0
-        # Do not remember colors for the next print.
+
+        # Reset colors for the next print.
         if self._colors and not text.endswith(self.NORMAL):
             self._writer.write(self.NORMAL)
 
@@ -253,6 +266,21 @@ class Printer(object):
         self.write_line(title_color + title)
         self.write_line(hyphen_line_color + '=' * (len(title) + 3))
 
+    def __getattr__(self, item):
+        # Support color function in a generic fashion.
+        if item in self._COLORS_LIST:
+            def wrapper(text):
+                # Color function content will be wrapped, and the rest of the text color will be normal.
+                wrapped_text = getattr(self, item.upper()) + text
+                # No need to duplicate normal color suffix.
+                if not wrapped_text.endswith(self.NORMAL):
+                    wrapped_text += self.NORMAL
+                return wrapped_text
+
+            return wrapper
+
+        return super().__getattribute__(item)
+
     class TextGroup(object):
         """
         This class is a context manager that adds indentation before the text it prints.
@@ -284,7 +312,9 @@ _ANSI_DIR = os.path.join(os.path.dirname(__file__), 'externals', 'ANSI')
 _ANSI_EXE = 'ansicon.exe'
 
 _printer = None
-_colors = True
+# Colors won't work on Linux if TERM is not defined.
+_colors = os.name == 'nt' or os.getenv('TERM')
+
 # If we're not inside IPython, prepare the Windows ANSI terminal (-p is to apply on the parent process).
 if os.name == 'nt' and sys.stdout == sys.__stdout__:
     try:
@@ -297,10 +327,8 @@ if os.name == 'nt' and sys.stdout == sys.__stdout__:
         except ImportError:
             try:
                 # Choose the right ANSICON to use, according to the OS version.
-                if 'PROGRAMFILES(x86)' in os.environ:
-                    subprocess.Popen([os.path.join(_ANSI_DIR, 'x64', _ANSI_EXE), '-p']).wait()
-                else:
-                    subprocess.Popen([os.path.join(_ANSI_DIR, 'x86', _ANSI_EXE), '-p']).wait()
+                bitness = 'x64' if platform.architecture()[0] == '64bit' else 'x86'
+                subprocess.Popen([os.path.join(_ANSI_DIR, bitness, _ANSI_EXE), '-p']).wait()
             except Exception:
                 # If all failed, just print without colors.
                 _colors = False
@@ -340,8 +368,8 @@ def _get_windows_console_width():
 
 def _get_linux_console_width():
     # Don't run tput if TERM is not defined, to prevent terminal-related errors.
-    if os.environ.get('TERM'):
-        return int(subprocess.check_output(['tput', 'cols'], stderr=subprocess.DEVNULL))
+    if os.getenv('TERM'):
+        return int(subprocess.check_output(['tput', 'cols']))
     return 0
 
 

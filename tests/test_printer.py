@@ -20,6 +20,12 @@ def color_printer(monkeypatch):
     return printer_instance
 
 
+def test_color_functions(color_printer):
+    assert color_printer.yellow('test') == color_printer.YELLOW + 'test' + color_printer.NORMAL
+    assert color_printer.red('test' + color_printer.yellow('test')) + 'test' == \
+        color_printer.RED + 'test' + color_printer.YELLOW + 'test' + color_printer.NORMAL + 'test'
+
+
 @pytest.mark.parametrize(('original_lines', 'split_lines'),
                          [(['A' * 79],
                            ['A' * 79]),
