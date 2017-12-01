@@ -2,8 +2,8 @@ py-printer
 ==========
 Printing everything for everyone!
 
-.. image:: https://img.shields.io/pypi/v/py-printer.svg
-    :target: https://pypi.python.org/pypi/py-printer
+.. image:: https://img.shields.io/pypi/v/pyprinter.svg
+    :target: https://pypi.python.org/pypi/pyprinter
     :alt: Latest Version
 
 .. image:: https://travis-ci.org/ofir123/py-printer.svg
