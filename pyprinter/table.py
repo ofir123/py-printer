@@ -91,7 +91,7 @@ class Table(object):
         if len(columns) == 0:
             columns = self._rows[0] if isinstance(self._rows[0], list) else self._rows[0].__dict__.keys()
 
-        return columns
+        return list(columns)
 
     @property
     def rows_list(self):
