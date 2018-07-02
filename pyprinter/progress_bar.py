@@ -29,13 +29,13 @@ Example:
 
     # Using a progress bar.
     from pyprinter import ProgressBar
-    
+
     progress = ProgressBar(len(file_names))
     for i in range(len(file_names)):
         n_lines += len(open(file_names[i]).readlines())
         progress.eval(i)
     progress.finish()
-    
+
     # Go down one line.
     print()
     # Print the summary.
