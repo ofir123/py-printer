@@ -11,12 +11,15 @@ Helps to display progress meters.
 A progress meter instance should be able to:
 1) Init with total.
 2) Eval with current.
-3) Clear.
+3) Inc from current.
+4) Finish.
 
 Behavior:
 - Method `eval` returns a string with the progress meter.
-- Current range is 0 to (total-1).
-- Some progress meters can be initialized without total, in that case they will display what they know.
+- Method `inc` behaves the same but uses internal counter.
+- Current range is 0 to (`total`-1).
+- Some progress meters can be initialized without `total`, in that case they will display what they know.
+- When working without `total`, call `eval` with no parameters to affect the animation.
 - Method `finish` brings the progress bar to 100%.
 
 Example:
@@ -25,12 +28,14 @@ Example:
     n_lines = 0
 
     # Using a progress bar.
-    import progress_bars
-    meter = progress_bars.Bar(len(file_names))
-
+    from pyprinter import ProgressBar
+    
+    progress = ProgressBar(len(file_names))
     for i in range(len(file_names)):
-        print('\r{}'.format(meter.eval(i))),
-        n_lines += len( open(file_names[i]).readlines() )
+        n_lines += len(open(file_names[i]).readlines())
+        progress.eval(i)
+    progress.finish()
+    
     # Go down one line.
     print()
     # Print the summary.
@@ -139,6 +144,7 @@ class Timing(object):
             elapsed = 0
         else:
             elapsed = time.monotonic() - self.start_time
+
         time_per_unit = elapsed / current if current and current > 0 else None
 
         if self.total is not None and time_per_unit is not None:
@@ -197,7 +203,7 @@ class ProgressBar(Composite):
     _SECOND_MESSAGE_TIME = 120
     _THIRD_MESSAGE_TIME = 180
 
-    def __init__(self, total=None, initial_value=0, verbose=True, show_message=True, is_lying=False,
+    def __init__(self, total=None, initial_value=0, verbose=True, show_default_message=True, is_lying=False,
                  n_per_cycle=_N_PER_CYCLE):
         """
         Initializes the progress bar.
@@ -205,13 +211,13 @@ class ProgressBar(Composite):
         :param total: The total amount of units. If None, a general progress bar will be printed.
         :param initial_value: The initial value to start from (Default is 0).
         :param verbose: If True, the progress bar will be printed to the screen after every eval call.
-        :param show_message: If True, a default message will be shown next to the progress bar.
+        :param show_default_message: If True, a default message will be shown next to the progress bar.
         :param is_lying: If True, this is a lying progress bar and you shouldn't believe it!
         :param n_per_cycle: The number of eval calls it takes to switch animation frame.
         """
         self._is_lying = is_lying
         self._verbose = verbose
-        self._show_message = show_message
+        self._show_default_message = show_default_message
         self.current = initial_value
         self.total = total
         self._width = get_console_width() - self._METERS_LEN
@@ -236,7 +242,7 @@ class ProgressBar(Composite):
 
         if message:
             message = ' ({})'.format(message)
-        elif self._show_message:
+        elif self._show_default_message:
             current_time = time.monotonic() - self._start_time
             # Write something comforting.
             if self._is_lying:
