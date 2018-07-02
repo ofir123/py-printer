@@ -84,7 +84,7 @@ class Percentage(object):
 
     def eval(self, current):
         percent = current * 100 // self.total
-        return '{0:>4s}'.format('%{0}'.format(percent))
+        return '{:>4s}'.format('{}%'.format(percent))
 
 
 class Animated(object):
@@ -96,8 +96,17 @@ class Animated(object):
                 n_per_cycle = 1
         self.n_per_cycle = n_per_cycle
         self.frames = frames
+        # Keep last state for empty eval calls.
+        self._last_state = 0
 
     def eval(self, current):
+        # Use either the eval input, or the previous saved state.
+        if current is not None:
+            self._last_state = current
+        else:
+            self._last_state += 1
+            current = self._last_state
+
         cycle_ratio = (current % self.n_per_cycle) / self.n_per_cycle
         pos = int(round(cycle_ratio * len(self.frames)))
         pos %= len(self.frames)
@@ -111,7 +120,9 @@ class Timing(object):
     each "unit", then predict the time left.
     """
 
-    def __init__(self, total=None, print_format='elapsed: {0:>5s} left: {1:>5s}'):
+    _DEFAULT_FORMAT = 'elapsed: {0:>5s} left: {1:>5s}'
+
+    def __init__(self, total=None, print_format=_DEFAULT_FORMAT):
         self.total = total
         self.print_format = print_format
 
@@ -119,14 +130,17 @@ class Timing(object):
         # Starts with minutes and seconds.
         self.fmt = '%M:%S'
         # Saving the time of the instance's creation.
-        self.start_time = time.time()
+        self.start_time = None
 
     def eval(self, current):
-        elapsed = time.time() - self.start_time
-        if current > 0:
-            time_per_unit = elapsed / current
+        # Start measuring time only after the first eval call.
+        if not self.start_time:
+            self.start_time = time.monotonic()
+            elapsed = 0
         else:
-            time_per_unit = None
+            elapsed = time.monotonic() - self.start_time
+        time_per_unit = elapsed / current if current and current > 0 else None
+
         if self.total is not None and time_per_unit is not None:
             remaining = time_per_unit * (self.total - current)
         else:
@@ -175,49 +189,71 @@ class ProgressBar(Composite):
     # The length taken by all the different meters we use.
     _METERS_LEN = 55
 
+    # The number of eval calls it takes to switch animation frame.
+    _N_PER_CYCLE = 100
+
     # Time constants.
-    _FIRST_MESSAGE_TIME = 30
-    _SECOND_MESSAGE_TIME = 90
+    _FIRST_MESSAGE_TIME = 60
+    _SECOND_MESSAGE_TIME = 120
     _THIRD_MESSAGE_TIME = 180
 
-    def __init__(self, total=None, verbose=True, is_lying=False):
+    def __init__(self, total=None, initial_value=0, verbose=True, show_message=True, is_lying=False,
+                 n_per_cycle=_N_PER_CYCLE):
         """
         Initializes the progress bar.
 
         :param total: The total amount of units. If None, a general progress bar will be printed.
+        :param initial_value: The initial value to start from (Default is 0).
         :param verbose: If True, the progress bar will be printed to the screen after every eval call.
+        :param show_message: If True, a default message will be shown next to the progress bar.
         :param is_lying: If True, this is a lying progress bar and you shouldn't believe it!
+        :param n_per_cycle: The number of eval calls it takes to switch animation frame.
         """
         self._is_lying = is_lying
         self._verbose = verbose
+        self._show_message = show_message
+        self.current = initial_value
         self.total = total
         self._width = get_console_width() - self._METERS_LEN
-        self._start_time = time.time()
+        self._start_time = None
+
         if total is not None and total > 0:
             meters = [Bar(total), Percentage(total)]
         else:
-            meters = [Animated(n_per_cycle=10000)]
+            meters = [Animated(n_per_cycle=n_per_cycle)]
         meters.append(Timing(total))
-        super(ProgressBar, self).__init__(meters)
+        super().__init__(meters)
 
-    def eval(self, current, message=''):
-        if current > self.total:
-            current = self.total
-        # Write something comforting (all messages are of the same size, because of the \r).
+    def eval(self, current=None, message=''):
+        # Start measuring time only after the first eval call.
+        if not self._start_time:
+            self._start_time = time.monotonic()
+
+        if current:
+            self.current = current
+            if self.total and current > self.total:
+                current = self.total
+
         if message:
-            message = ' ({0})'.format(message)
-        elif time.time() - self._start_time > self._THIRD_MESSAGE_TIME:
-            message = ' (When will it end?)'
-        elif time.time() - self._start_time > self._SECOND_MESSAGE_TIME:
-            message = ' (Enough already!!) '
-        elif time.time() - self._start_time > self._FIRST_MESSAGE_TIME:
-            message = ' (Still here?)      '
-        elif self._is_lying:
-            message = ' (It\'s lying!!!)   '
+            message = ' ({})'.format(message)
+        elif self._show_message:
+            current_time = time.monotonic() - self._start_time
+            # Write something comforting.
+            if self._is_lying:
+                message = ' (It\'s lying!!!)'
+            elif current_time > self._THIRD_MESSAGE_TIME:
+                message = ' (When will it end?)'
+            elif current_time > self._SECOND_MESSAGE_TIME:
+                message = ' (Enough already!!)'
+            elif current_time > self._FIRST_MESSAGE_TIME:
+                message = ' (Still here?)'
+
+        # Format message to fit console width (and add whitespaces to overwrite previous message).
+        message = message[:self._width] + ' ' * max(0, self._width - len(message))
         # Print the result.
-        result = super(ProgressBar, self).eval(current, message[:self._width])
+        result = super(ProgressBar, self).eval(current, message)
         if self._verbose:
-            print('\r{0}'.format(result), end='')
+            print('\r{}'.format(result), end='')
             sys.stdout.flush()
 
     def finish(self):
@@ -226,3 +262,6 @@ class ProgressBar(Composite):
             self.eval(self.total)
             # Finish the line.
             print('')
+
+    def inc(self, amount=1, message=''):
+        self.eval(self.current + amount, message)
