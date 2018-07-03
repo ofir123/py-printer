@@ -93,12 +93,12 @@ class Percentage(object):
 
 
 class Animated(object):
+    # The number of eval calls it takes to switch animation frame.
+    _N_PER_CYCLE = 100
+
     def __init__(self, total=None, frames=Frames.pinwheel, n_per_cycle=None):
         if n_per_cycle is None:
-            if total is not None:
-                n_per_cycle = total // 10
-            else:
-                n_per_cycle = 1
+            n_per_cycle = total // 10 if total is not None else self._N_PER_CYCLE
         self.n_per_cycle = n_per_cycle
         self.frames = frames
         # Keep last state for empty eval calls.
@@ -195,21 +195,16 @@ class ProgressBar(Composite):
     # The length taken by all the different meters we use.
     _METERS_LEN = 55
 
-    # The number of eval calls it takes to switch animation frame.
-    _N_PER_CYCLE = 100
-
     # Time constants.
     _FIRST_MESSAGE_TIME = 60
     _SECOND_MESSAGE_TIME = 120
     _THIRD_MESSAGE_TIME = 180
 
-    def __init__(self, total=None, initial_value=0, verbose=True, show_default_message=True, is_lying=False,
-                 n_per_cycle=_N_PER_CYCLE):
+    def __init__(self, total=None, verbose=True, show_default_message=True, is_lying=False, n_per_cycle=None):
         """
         Initializes the progress bar.
 
         :param total: The total amount of units. If None, a general progress bar will be printed.
-        :param initial_value: The initial value to start from (Default is 0).
         :param verbose: If True, the progress bar will be printed to the screen after every eval call.
         :param show_default_message: If True, a default message will be shown next to the progress bar.
         :param is_lying: If True, this is a lying progress bar and you shouldn't believe it!
@@ -218,7 +213,7 @@ class ProgressBar(Composite):
         self._is_lying = is_lying
         self._verbose = verbose
         self._show_default_message = show_default_message
-        self.current = initial_value
+        self.current = None
         self.total = total
         self._width = get_console_width() - self._METERS_LEN
         self._start_time = None
@@ -231,11 +226,14 @@ class ProgressBar(Composite):
         super().__init__(meters)
 
     def eval(self, current=None, message=''):
+        if self.total and current is None:
+            raise ValueError('Must supply a value for eval!')
+
         # Start measuring time only after the first eval call.
         if not self._start_time:
             self._start_time = time.monotonic()
 
-        if current:
+        if current is not None:
             self.current = current
             if self.total and current > self.total:
                 current = self.total
@@ -263,11 +261,53 @@ class ProgressBar(Composite):
             sys.stdout.flush()
 
     def finish(self):
-        if self._verbose and self.total > 0:
-            # Get to 100%.
-            self.eval(self.total)
+        if self._verbose:
+            if self.total and self.total > 0:
+                # Get to 100%.
+                self.eval(self.total)
+
             # Finish the line.
             print('')
 
     def inc(self, amount=1, message=''):
+        if amount < 1:
+            raise ValueError('Must increment by 1 or more!')
+
+        if self.current is None:
+            amount -= 1
+            self.current = 0
         self.eval(self.current + amount, message)
+
+
+class ProgressBarIterator(object):
+    """
+    An iterable version of ProgressBar.
+    """
+
+    def __init__(self, iterable, verbose=True, show_default_message=True, is_lying=False,
+                 n_per_cycle=None):
+        """
+        Initializes the progress bar iterator.
+
+        :param iterable: The iterable to go over.
+        :param verbose: If True, the progress bar will be printed to the screen after every eval call.
+        :param show_default_message: If True, a default message will be shown next to the progress bar.
+        :param is_lying: If True, this is a lying progress bar and you shouldn't believe it!
+        :param n_per_cycle: The number of eval calls it takes to switch animation frame.
+        """
+        self._iterator = iter(iterable)
+        if hasattr(iterable, '__len__'):
+            self._progress_bar = ProgressBar(len(iterable), verbose=verbose, show_default_message=show_default_message,
+                                             is_lying=is_lying, n_per_cycle=n_per_cycle)
+        else:
+            self._progress_bar = ProgressBar(verbose=verbose, show_default_message=show_default_message,
+                                             is_lying=is_lying, n_per_cycle=n_per_cycle)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        self._progress_bar.inc()
+        if self._progress_bar.total and self._progress_bar.total == self._progress_bar.current:
+            self._progress_bar.finish()
+        return next(self._iterator)

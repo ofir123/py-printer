@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import defaultdict
 import csv
 from io import StringIO
 import re
@@ -19,30 +19,24 @@ class Table(object):
     ALIGN_RIGHT = 2
     _ALIGN_DICTIONARY = {ALIGN_CENTER: 'c', ALIGN_LEFT: 'l', ALIGN_RIGHT: 'r'}
 
-    def __init__(self, name, rows, columns=None, column_size_limit=COLUMN_SIZE_LIMIT,
+    def __init__(self, title, data, column_size_map=None, column_size_limit=COLUMN_SIZE_LIMIT,
                  headers_color=pyprinter.Printer.NORMAL, title_align=ALIGN_CENTER):
         """
         Initializes the table.
 
-        :param name: The name of the scheme.
-        :param rows: A list of all the rows in this scheme. All members of this list should be from the same class.
-        :param columns: A list of the columns, or an OrderedDict of the columns and their max sizes.
-                        If None, will be extracted from the first row's keys.
+        :param title: The title of the table.
+        :param data: A list of dictionaries, each representing a row.
+        :param column_size_map: A map between each column name and its max size.
         :param column_size_limit: Column values larger than that size will be truncated.
         :param headers_color: The color of the columns (the headers of the table).
         :param title_align: The alignment of the name of the table.
         """
-        self.name = name
-        self._rows = rows
-        self._column_size_limit = column_size_limit
-        # _columns is a dict that maps the name of the column to its size limit.
-        if isinstance(columns, OrderedDict):
-            self._columns = columns
-        else:
-            self._columns = OrderedDict()
-            if columns is not None:
-                for column in columns:
-                    self._columns[column] = self._column_size_limit
+        self.title = title
+        self.data = data
+        self._column_size_map = defaultdict(lambda: column_size_limit)
+        if column_size_map:
+            for column_name, max_size in column_size_map.items():
+                self._column_size_map[column_name] = max_size
         self._headers_color = headers_color
         self.title_align = title_align
 
@@ -62,11 +56,11 @@ class Table(object):
             first_line_length = len(first_line) - len(re.findall(pyprinter.Printer._ANSI_REGEXP, first_line)) * \
                 pyprinter.Printer._ANSI_COLOR_LENGTH
             if self.title_align == self.ALIGN_CENTER:
-                title = ' ' * (first_line_length // 2 - len(self.name) // 2) + self.name
+                title = ' ' * (first_line_length // 2 - len(self.title) // 2) + self.title
             elif self.title_align == self.ALIGN_LEFT:
-                title = self.name
+                title = self.title
             else:
-                title = ' ' * (first_line_length - len(self.name)) + self.name
+                title = ' ' * (first_line_length - len(self.title)) + self.title
             printer.write_line(printer.YELLOW + title)
             # We split the table to lines in order to keep the indentation.
             printer.write_line(table_string)
@@ -74,42 +68,16 @@ class Table(object):
     @property
     def rows(self):
         """
-        Returns the rows only of the table, in a case where columns is None.
+        Returns the table rows.
         """
-        rows = self._rows
-        if len(self._columns.keys()) == 0:
-            rows = self._rows[1:]
-
-        return rows
+        return [list(d.values()) for d in self.data]
 
     @property
     def columns(self):
         """
-        Returns the columns only of the table, in a case where columns is None.
+        Returns the table columns.
         """
-        columns = self._columns.keys()
-        if len(columns) == 0:
-            columns = self._rows[0] if isinstance(self._rows[0], list) else self._rows[0].__dict__.keys()
-
-        return list(columns)
-
-    @property
-    def rows_list(self):
-        """
-        Returns the rows of the table as a list.
-        """
-        rows = self.rows
-        columns = self.columns
-        result_rows = []
-
-        for row in rows:
-            if isinstance(row, dict):
-                row = [row.get(column) for column in columns]
-            elif not isinstance(row, list):
-                row = [getattr(row, column) for column in columns]
-            result_rows.append(row)
-
-        return result_rows
+        return list(self.data[0].keys())
 
     def set_column_size_limit(self, column_name, size_limit):
         """
@@ -118,10 +86,8 @@ class Table(object):
         :param column_name: The name of the column to change.
         :param size_limit: The max size of the column width.
         """
-        if len(self._columns.keys()) == 0:
-            raise ValueError('Can\'t have special column size limit without columns provided!')
-        if self._columns.get(column_name) is not None:
-            self._columns[column_name] = size_limit
+        if self._column_size_map.get(column_name):
+            self._column_size_map[column_name] = size_limit
         else:
             raise ValueError('There is no column named {}!'.format(column_name))
 
@@ -138,10 +104,10 @@ class Table(object):
         | value3(field1) |  value3(field2)
         +----------------+----------------
         """
-        rows = self.rows_list
+        rows = self.rows
         columns = self.columns
-        # Adding the column color.
-        if len(columns) > 0 and self._headers_color != pyprinter.Printer.NORMAL and len(rows) > 0 and len(rows[0]) > 0:
+        # Add the column color.
+        if self._headers_color != pyprinter.Printer.NORMAL and len(rows) > 0 and len(columns) > 0:
             # We need to copy the lists so that we wont insert colors in the original ones.
             rows[0] = rows[0][:]
             columns = columns[:]
@@ -154,13 +120,11 @@ class Table(object):
 
         for row in rows:
             table.add_row(row)
+
         # Set the max width according to the columns size dict, or by default size limit when columns were not provided.
-        if len(self._columns.keys()) != 0:
-            for column, max_width in self._columns.items():
-                table.max_width[column] = max_width
-        else:
-            for column in columns:
-                table.max_width[column] = self._column_size_limit
+        for column, max_width in self._column_size_map.items():
+            table.max_width[column] = max_width
+
         return table
 
     def get_as_html(self):
@@ -170,28 +134,27 @@ class Table(object):
         :return: HTML representation of the table.
         """
         table_string = self._get_pretty_table().get_html_string()
-        title = ('{:^' + str(len(table_string.splitlines()[0])) + '}').format(self.name)
+        title = ('{:^' + str(len(table_string.splitlines()[0])) + '}').format(self.title)
         return '<center><h1>{0}</h1></center>'.format(title) + table_string
 
-    def get_as_csv(self):
+    def get_as_csv(self, output_file_path=None):
         """
         Returns the table object as a CSV string.
 
+        :param output_file_path: The output file to save the CSV to, or None.
         :return: CSV representation of the table.
         """
-        string_io = StringIO()
+        output = StringIO() if not output_file_path else open(output_file_path, 'w')
         try:
-            csv_writer = csv.writer(string_io)
-            rows = self.rows_list
-            columns = self.columns
+            csv_writer = csv.writer(output)
 
-            csv_writer.writerow(columns)
-            for row in rows:
+            csv_writer.writerow(self.columns)
+            for row in self.rows:
                 csv_writer.writerow(row)
-            string_io.seek(0)
-            return string_io.read()
+            output.seek(0)
+            return output.read()
         finally:
-            string_io.close()
+            output.close()
 
     def __iter__(self):
         return iter(self.rows)
