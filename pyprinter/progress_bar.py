@@ -194,6 +194,8 @@ class ProgressBar(Composite):
 
     # The length taken by all the different meters we use.
     _METERS_LEN = 55
+    # No printing will be done in the safe margin, to avoid accidental new lines.
+    _SAFE_MARGIN = 5
 
     # Time constants.
     _FIRST_MESSAGE_TIME = 60
@@ -253,7 +255,7 @@ class ProgressBar(Composite):
                 message = ' (Still here?)'
 
         # Format message to fit console width (and add whitespaces to overwrite previous message).
-        message = message[:self._width] + ' ' * max(0, self._width - len(message))
+        message = message[:self._width] + ' ' * max(0, self._width - len(message) - self._SAFE_MARGIN)
         # Print the result.
         result = super(ProgressBar, self).eval(current, message)
         if self._verbose:
@@ -284,20 +286,22 @@ class ProgressBarIterator(object):
     An iterable version of ProgressBar.
     """
 
-    def __init__(self, iterable, verbose=True, show_default_message=True, is_lying=False,
+    def __init__(self, iterable, total=None, verbose=True, show_default_message=True, is_lying=False,
                  n_per_cycle=None):
         """
         Initializes the progress bar iterator.
 
         :param iterable: The iterable to go over.
+        :param total: The total number of iterations (if None, will be extracted from iterator).
         :param verbose: If True, the progress bar will be printed to the screen after every eval call.
         :param show_default_message: If True, a default message will be shown next to the progress bar.
         :param is_lying: If True, this is a lying progress bar and you shouldn't believe it!
         :param n_per_cycle: The number of eval calls it takes to switch animation frame.
         """
         self._iterator = iter(iterable)
-        if hasattr(iterable, '__len__'):
-            self._progress_bar = ProgressBar(len(iterable), verbose=verbose, show_default_message=show_default_message,
+        if total or hasattr(iterable, '__len__'):
+            total = total or len(iterable)
+            self._progress_bar = ProgressBar(total, verbose=verbose, show_default_message=show_default_message,
                                              is_lying=is_lying, n_per_cycle=n_per_cycle)
         else:
             self._progress_bar = ProgressBar(verbose=verbose, show_default_message=show_default_message,
