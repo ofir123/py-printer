@@ -109,3 +109,5 @@ In order to build a new version, do the following:
     - Update version string in `setup.py` (in both `version` and `download_url` fields)
     - Run `python setup.py sdist bdist_wheel` to create the build
     - Run `twine upload dist/*` to upload everything to PyPi
+    - Create a release (and tag) for the new version in GitHub (and delete the old one)
+    - Delete old version from PyPi as well
