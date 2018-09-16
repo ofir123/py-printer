@@ -1,20 +1,27 @@
-import pyprinter
+from typing import Optional, Union, Tuple, TypeVar
+
+from pyprinter import Printer, get_printer
+
+# An internal type for self-related methods inside FileSize.
+_FileSizeType = TypeVar('_FileSizeType', bound='FileSize')
 
 
-class FileSize(object):
+class FileSize:
     """
     Represents a file size measured in bytes.
     """
 
     MULTIPLIERS = [('kb', 1024), ('mb', 1024 ** 2), ('gb', 1024 ** 3), ('tb', 1024 ** 4), ('b', 1)]
 
-    SIZE_COLORS = {'B': pyprinter.Printer.YELLOW,
-                   'KB': pyprinter.Printer.CYAN,
-                   'MB': pyprinter.Printer.GREEN,
-                   'GB': pyprinter.Printer.RED,
-                   'TB': pyprinter.Printer.DARK_RED}
+    SIZE_COLORS = {
+        'B': Printer.YELLOW,
+        'KB': Printer.CYAN,
+        'MB': Printer.GREEN,
+        'GB': Printer.RED,
+        'TB': Printer.DARK_RED
+    }
 
-    def __init__(self, size):
+    def __init__(self, size: Union[int, float, str, bytes, _FileSizeType]):
         """
         Initializes a new FileSize from an integer (or a string) of the bytes amount.
         """
@@ -35,16 +42,16 @@ class FileSize(object):
                         break
             self.size = int(float(size) * chosen_multiplier)
 
-    def __str__(self):
+    def __str__(self) -> str:
         unit, unit_divider = self._unit_info()
         # We multiply then divide by 100 in order to have only two decimal places.
         size_in_unit = (self.size * 100) / unit_divider / 100
-        return '{0:.1f} {1}'.format(size_in_unit, unit)
+        return f'{size_in_unit:.1f} {unit}'
 
-    def __repr__(self):
-        return '<FileSize - {0}>'.format(self)
+    def __repr__(self) -> str:
+        return f'<FileSize - {self}>'
 
-    def _unit_info(self):
+    def _unit_info(self) -> Tuple[str, int]:
         """
         Returns both the best unit to measure the size, and its power.
 
@@ -70,22 +77,22 @@ class FileSize(object):
         return unit, unit_divider
 
     @property
-    def bytes(self):
+    def bytes(self) -> int:
         return self.size
 
     @property
-    def kilo_bytes(self):
+    def kilo_bytes(self) -> int:
         return self.bytes // 1024
 
     @property
-    def mega_bytes(self):
+    def mega_bytes(self) -> int:
         return self.kilo_bytes // 1024
 
     @staticmethod
-    def get_file_size_string(size_bytes):
+    def get_file_size_string(size_bytes: int) -> str:
         return str(FileSize(size_bytes))
 
-    def __add__(self, file_size):
+    def __add__(self, file_size: Union[int, float, _FileSizeType]) -> _FileSizeType:
         """
         Handles adding numbers or file sizes to the file size.
 
@@ -96,9 +103,9 @@ class FileSize(object):
             return FileSize(self.size + file_size.size)
         if isinstance(file_size, (int, float)):
             return FileSize(self.size + file_size)
-        raise TypeError('Can\'t add a {} to a file size'.format(type(file_size).__name__))
+        raise TypeError(f'Can\'t add a {type(file_size).__name__} to a file size')
 
-    def __sub__(self, file_size):
+    def __sub__(self, file_size: Union[int, float, _FileSizeType]) -> _FileSizeType:
         """
         Handles subtracting numbers or file sizes from the file size.
 
@@ -109,15 +116,15 @@ class FileSize(object):
             return FileSize(self.size - file_size.size)
         if isinstance(file_size, (int, float)):
             return FileSize(self.size - file_size)
-        raise TypeError('Can\'t subtract a {} from a file size'.format(type(file_size).__name__))
+        raise TypeError(f'Can\'t subtract a {type(file_size).__name__} from a file size')
 
-    def __int__(self):
+    def __int__(self) -> int:
         return self.size
 
-    def __float__(self):
+    def __float__(self) -> float:
         return float(self.size)
 
-    def __mul__(self, amount):
+    def __mul__(self, amount: Union[int, float]) -> _FileSizeType:
         """
         Multiplies the file size by the specified amount.
 
@@ -126,9 +133,9 @@ class FileSize(object):
         """
         if isinstance(amount, (int, float)):
             return FileSize(self.size * amount)
-        raise TypeError('Can\'t multiply a file size by a {} (only by a number)'.format(type(amount).__name__))
+        raise TypeError(f'Can\'t multiply a file size by a {type(amount).__name__} (only by a number)')
 
-    def __truediv__(self, amount):
+    def __truediv__(self, amount: Union[int, float]) -> _FileSizeType:
         """
         Divides the file size by the specified amount.
 
@@ -137,9 +144,9 @@ class FileSize(object):
         """
         if isinstance(amount, (int, float)):
             return FileSize(self.size / amount)
-        raise TypeError('Can\'t divide a file size by a {} (only by a number)'.format(type(amount).__name__))
+        raise TypeError(f'Can\'t divide a file size by a {type(amount).__name__} (only by a number)')
 
-    def __floordiv__(self, amount):
+    def __floordiv__(self, amount: Union[int, float]) -> _FileSizeType:
         """
         Divides the file size by the specified amount and floors the result.
 
@@ -148,9 +155,9 @@ class FileSize(object):
         """
         if isinstance(amount, (int, float)):
             return FileSize(self.size // amount)
-        raise TypeError('Can\'t divide a file size by a {} (only by a number)'.format(type(amount).__name__))
+        raise TypeError(f'Can\'t divide a file size by a {type(amount).__name__} (only by a number)')
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         """
         Returns whether this size is less than the other size.
 
@@ -158,7 +165,7 @@ class FileSize(object):
         """
         return int(self) < int(FileSize(other))
 
-    def __le__(self, other):
+    def __le__(self, other) -> bool:
         """
         Returns whether this size is less than or equal to the other size.
 
@@ -166,7 +173,7 @@ class FileSize(object):
         """
         return int(self) <= int(FileSize(other))
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """
         Returns whether this size is equal to the other size.
 
@@ -174,7 +181,7 @@ class FileSize(object):
         """
         return other is not None and isinstance(other, (int, float, FileSize)) and int(self) == int(FileSize(other))
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         """
         Returns whether this size is not equal to the other size.
 
@@ -182,7 +189,7 @@ class FileSize(object):
         """
         return not self.__eq__(other)
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:
         """
         Returns whether this size is greater than the other size.
 
@@ -190,7 +197,7 @@ class FileSize(object):
         """
         return int(self) > int(FileSize(other))
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> bool:
         """
         Returns whether this size is greater than or equal to the other size.
 
@@ -198,7 +205,7 @@ class FileSize(object):
         """
         return int(self) >= int(FileSize(other))
 
-    def pretty_print(self, printer=None, min_width=1, min_unit_width=1):
+    def pretty_print(self, printer: Optional[Printer] = None, min_width: int = 1, min_unit_width: int = 1):
         """
         Prints the file size (and it's unit), reserving places for longer sizes and units.
         For example:
@@ -217,12 +224,12 @@ class FileSize(object):
         # Multiply and then divide by 100 in order to have only two decimal places.
         size_in_unit = (self.size * 100) / unit_divider / 100
         # Add spaces to align the units.
-        unit = ' ' * (min_unit_width - len(unit)) + unit
-        size_string = '{0:.1f}'.format(size_in_unit)
+        unit = '{}{}'.format(' ' * (min_unit_width - len(unit)), unit)
+        size_string = f'{size_in_unit:.1f}'
         total_len = len(size_string) + 1 + len(unit)
         if printer is None:
-            printer = pyprinter.get_printer()
+            printer = get_printer()
         spaces_count = min_width - total_len
         if spaces_count > 0:
             printer.write(' ' * spaces_count)
-        printer.write(size_string + ' ' + unit_color + unit)
+        printer.write(f'{size_string} {unit_color}{unit}')

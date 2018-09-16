@@ -3,7 +3,7 @@ import platform
 import re
 import sys
 import subprocess
-
+from typing import List, Optional
 
 try:
     from IPython.utils.io import stdout
@@ -14,24 +14,54 @@ except ImportError:
 _IN_QT = None
 
 
-class DefaultWriter(object):
+class DefaultWriter:
     """
     A default writing stream.
     """
 
-    def __init__(self, output_file=None):
+    def __init__(self, output_file=None, disabled: bool = False):
         """
         Initializes the default writer.
 
         :param output_file: The output file to write to (default is IPython's io.stdout).
+        :param disabled: If True, nothing will be printed.
         """
         self.output_file = output_file or stdout
+        self.disabled = disabled
 
-    def write(self, text):
-        print(text, end='', file=self.output_file)
+    def write(self, text: str):
+        if not self.disabled:
+            print(text, end='', file=self.output_file)
 
 
-class Printer(object):
+class _TextGroup:
+    """
+    This class is a context manager that adds indentation before the text it prints.
+    It should only be created by specific methods of the Printer class.
+    """
+
+    def __init__(self, printer, unit: int, add_line: bool):
+        self.printer = printer
+        self.unit = unit
+        self._add_line = add_line
+
+    def __enter__(self):
+        # Treat this like a new line.
+        if self.printer._in_line:
+            self.printer._is_first_line = True
+        self.printer._indents.append(self.unit)
+        self.printer.indents_sum += self.unit
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.printer._is_first_line = False
+        self.printer._indents.pop()
+        self.printer.indents_sum -= self.unit
+        # Treat this like a line break.
+        if self._add_line and self.printer._in_line:
+            self.printer.write_line()
+
+
+class Printer:
     """
     A user-friendly printer, with auxiliary functions for colors and tabs.
     """
@@ -43,7 +73,7 @@ class Printer(object):
     # ANSI Color codes constants.
     _ANSI_COLOR_PREFIX = '\x1b'
     _ANSI_REGEXP = re.compile('\\x1b\[(\d;)?(\d+)m')
-    _ANSI_COLOR_CODE = _ANSI_COLOR_PREFIX + '[%s%dm'
+    _ANSI_COLOR_CODE = f'{_ANSI_COLOR_PREFIX}[%s%dm'
     _DARK_CODE = '0;'
     _LIGHT_CODE = '1;'
 
@@ -68,7 +98,7 @@ class Printer(object):
 
     _ANSI_COLOR_LENGTH = len(WHITE)
 
-    def __init__(self, writer, colors=True, width_limit=True):
+    def __init__(self, writer, colors: bool = True, width_limit: bool = True):
         """
         Initializes the printer with the given writer.
 
@@ -85,7 +115,7 @@ class Printer(object):
         self._indents = []
         self.indents_sum = 0
 
-    def group(self, indent=DEFAULT_INDENT, add_line=True):
+    def group(self, indent: int = DEFAULT_INDENT, add_line: bool = True) -> _TextGroup:
         """
         Returns a context manager which adds an indentation before each line.
 
@@ -93,9 +123,9 @@ class Printer(object):
         :param add_line: If True, a new line will be printed after the group.
         :return: A TextGroup context manager.
         """
-        return Printer.TextGroup(self, indent, add_line)
+        return _TextGroup(self, indent, add_line)
 
-    def _split_lines(self, original_lines):
+    def _split_lines(self, original_lines: List[str]) -> List[str]:
         """
         Splits the original lines list according to the current console width and group indentations.
 
@@ -154,7 +184,7 @@ class Printer(object):
                     lines.append(fixed_line)
         return lines
 
-    def write(self, text):
+    def write(self, text: str):
         """
         Prints text to the screen.
         Supports colors by using the color constants.
@@ -208,7 +238,7 @@ class Printer(object):
         if self._colors and not text.endswith(self.NORMAL):
             self._writer.write(self.NORMAL)
 
-    def write_line(self, text=''):
+    def write_line(self, text: str = ''):
         """
         Prints a line of text to the screen.
         Uses the write method.
@@ -217,9 +247,10 @@ class Printer(object):
         """
         self.write(text + self.LINE_SEP)
 
-    def write_aligned(self, key, value, not_important_keys=None, is_list=False, align_size=None,
-                      key_color=PURPLE, value_color=GREEN, dark_key_color=DARK_PURPLE, dark_value_color=DARK_GREEN,
-                      separator=SEPARATOR):
+    def write_aligned(self, key: str, value: str, not_important_keys: Optional[List[str]] = None,
+                      is_list: bool = False, align_size: Optional[int] = None, key_color: str = PURPLE,
+                      value_color: str = GREEN, dark_key_color: str = DARK_PURPLE, dark_value_color: str = DARK_GREEN,
+                      separator: str = SEPARATOR):
         """
         Prints keys and values aligned to align_size.
 
@@ -234,7 +265,7 @@ class Printer(object):
         :param dark_value_color: The values text color for unimportant values (default is dark green).
         :param separator: The separator to use (default is ':').
         """
-        align_size = align_size or min(32, get_console_width() / 2)
+        align_size = align_size or min(32, get_console_width() // 2)
         not_important_keys = not_important_keys or []
         if value is None:
             return
@@ -255,7 +286,7 @@ class Printer(object):
             elif not is_list:
                 self.write_line(value_color + str(value))
 
-    def write_title(self, title, title_color=YELLOW, hyphen_line_color=WHITE):
+    def write_title(self, title: str, title_color: str = YELLOW, hyphen_line_color: str = WHITE):
         """
         Prints title with hyphen line underneath it.
 
@@ -266,7 +297,7 @@ class Printer(object):
         self.write_line(title_color + title)
         self.write_line(hyphen_line_color + '=' * (len(title) + 3))
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str):
         # Support color function in a generic fashion.
         if item in self._COLORS_LIST:
             def wrapper(text):
@@ -280,31 +311,6 @@ class Printer(object):
             return wrapper
 
         return super().__getattribute__(item)
-
-    class TextGroup(object):
-        """
-        This class is a context manager that adds indentation before the text it prints.
-        """
-
-        def __init__(self, printer, unit, add_line):
-            self.printer = printer
-            self.unit = unit
-            self._add_line = add_line
-
-        def __enter__(self):
-            # Treat this like a new line.
-            if self.printer._in_line:
-                self.printer._is_first_line = True
-            self.printer._indents.append(self.unit)
-            self.printer.indents_sum += self.unit
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            self.printer._is_first_line = False
-            self.printer._indents.pop()
-            self.printer.indents_sum -= self.unit
-            # Treat this like a line break.
-            if self._add_line and self.printer._in_line:
-                self.printer.write_line()
 
 
 # The path to the external ANSI printer.
@@ -334,12 +340,13 @@ if os.name == 'nt' and sys.stdout == sys.__stdout__:
                 _colors = False
 
 
-def get_printer(colors=True, width_limit=True):
+def get_printer(colors: bool = True, width_limit: bool = True, disabled: bool = False) -> Printer:
     """
     Returns an already initialized instance of the printer.
 
     :param colors: If False, no colors will be printed.
     :param width_limit: If True, printing width will be limited by console width.
+    :param disabled: If True, nothing will be printed.
     """
     global _printer
     global _colors
@@ -347,11 +354,11 @@ def get_printer(colors=True, width_limit=True):
     colors = colors and _colors
     # If the printer was never defined before, or the settings have changed.
     if not _printer or (colors != _printer._colors) or (width_limit != _printer._width_limit):
-        _printer = Printer(DefaultWriter(), colors=colors, width_limit=width_limit)
+        _printer = Printer(DefaultWriter(disabled=disabled), colors=colors, width_limit=width_limit)
     return _printer
 
 
-def _get_windows_console_width():
+def _get_windows_console_width() -> int:
     """
     A small utility function for getting the current console window's width, in Windows.
 
@@ -366,14 +373,14 @@ def _get_windows_console_width():
     return info.dwSize.X
 
 
-def _get_linux_console_width():
+def _get_linux_console_width() -> int:
     # Don't run tput if TERM is not defined, to prevent terminal-related errors.
     if os.getenv('TERM'):
         return int(subprocess.check_output(['tput', 'cols']))
     return 0
 
 
-def _in_qtconsole():
+def _in_qtconsole() -> bool:
     """
     A small utility function which determines if we're running in QTConsole's context.
     """
@@ -390,7 +397,7 @@ def _in_qtconsole():
         return False
 
 
-def get_console_width():
+def get_console_width() -> int:
     """
     A small utility function for getting the current console window's width.
 

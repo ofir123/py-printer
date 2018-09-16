@@ -101,3 +101,11 @@ Usage
 Install
 ^^^^^^^
 ``pip install pyprinter``
+
+Development
+^^^^^^^^^^^
+In order to build a new version, do the following:
+
+    - Update version string in `setup.py` (in both `version` and `download_url` fields)
+    - Run `python setup.py sdist bdist_wheel` to create the build
+    - Run `twine upload dist/*` to upload everything to PyPi

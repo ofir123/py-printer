@@ -1,5 +1,6 @@
 import sys
 import time
+from typing import Optional, List
 
 from pyprinter import get_console_width
 
@@ -43,7 +44,7 @@ Example:
 """
 
 
-class Frames(object):
+class Frames:
     pinwheel = ('-', '\\', '|', '/', '-', '\\', '|', '/')
     pacman = ('(', '(', 'C', 'C', 'G', 'C', 'C')
     sticks = ('\\/', '||', '/\\', '||')
@@ -67,14 +68,14 @@ class Frames(object):
     )
 
 
-class Bar(object):
-    def __init__(self, total, width=20, before='-', after='#'):
+class Bar:
+    def __init__(self, total: int, width: int = 20, before: str = '-', after: str = '#'):
         self.total = total
         self.width = width
         self.after = after
         self.before = before
 
-    def eval(self, current):
+    def eval(self, current: int) -> str:
         # Number of 'after' characters.
         num_after = current * self.width // self.total
         # Shouldn't pass the width.
@@ -83,20 +84,21 @@ class Bar(object):
         return bar
 
 
-class Percentage(object):
-    def __init__(self, total):
+class Percentage:
+    def __init__(self, total: int):
         self.total = total
 
-    def eval(self, current):
+    def eval(self, current: int) -> str:
         percent = current * 100 // self.total
-        return '{:>4s}'.format('{}%'.format(percent))
+        return f'{percent:3}%'
 
 
-class Animated(object):
+class Animated:
     # The number of eval calls it takes to switch animation frame.
     _N_PER_CYCLE = 100
 
-    def __init__(self, total=None, frames=Frames.pinwheel, n_per_cycle=None):
+    def __init__(self, total: Optional[int] = None, frames: List[str] = Frames.pinwheel,
+                 n_per_cycle: Optional[int] = None):
         if n_per_cycle is None:
             n_per_cycle = total // 10 if total is not None else self._N_PER_CYCLE
         self.n_per_cycle = n_per_cycle
@@ -104,7 +106,7 @@ class Animated(object):
         # Keep last state for empty eval calls.
         self._last_state = 0
 
-    def eval(self, current):
+    def eval(self, current: Optional[int]) -> str:
         # Use either the eval input, or the previous saved state.
         if current is not None:
             self._last_state = current
@@ -118,7 +120,7 @@ class Animated(object):
         return self.frames[pos]
 
 
-class Timing(object):
+class Timing:
     """
     Timing (how much time has elapsed, how much is left).
     Find the time elapsed since its creation, calculate the average time for
@@ -127,7 +129,7 @@ class Timing(object):
 
     _DEFAULT_FORMAT = 'elapsed: {0:>5s} left: {1:>5s}'
 
-    def __init__(self, total=None, print_format=_DEFAULT_FORMAT):
+    def __init__(self, total: Optional[int] = None, print_format: str = _DEFAULT_FORMAT):
         self.total = total
         self.print_format = print_format
 
@@ -137,7 +139,7 @@ class Timing(object):
         # Saving the time of the instance's creation.
         self.start_time = None
 
-    def eval(self, current):
+    def eval(self, current: Optional[int]) -> str:
         # Start measuring time only after the first eval call.
         if not self.start_time:
             self.start_time = time.monotonic()
@@ -145,7 +147,7 @@ class Timing(object):
         else:
             elapsed = time.monotonic() - self.start_time
 
-        time_per_unit = elapsed / current if current and current > 0 else None
+        time_per_unit = elapsed / current if current is not None and current > 0 else None
 
         if self.total is not None and time_per_unit is not None:
             remaining = time_per_unit * (self.total - current)
@@ -167,12 +169,12 @@ class Timing(object):
         return self.print_format.format(elapsed_str, remaining_str)
 
 
-class Composite(object):
+class Composite:
     """
     A composite of other progress meters.
     """
 
-    def __init__(self, meters, print_format=None):
+    def __init__(self, meters: List, print_format: Optional[str] = None):
         self.meters = meters
         if print_format is not None:
             self.print_format = print_format
@@ -182,7 +184,7 @@ class Composite(object):
                 self.print_format += '{' + str(i) + '} '
             self.print_format = self.print_format[:-1] + '{' + str(len(meters)) + '}'
 
-    def eval(self, current, message=''):
+    def eval(self, current: Optional[int], message: str = '') -> str:
         res_list = [x.eval(current) for x in self.meters]
         return self.print_format.format(*(res_list + [message]))
 
@@ -227,7 +229,7 @@ class ProgressBar(Composite):
         meters.append(Timing(total))
         super().__init__(meters)
 
-    def eval(self, current=None, message=''):
+    def eval(self, current: Optional[int] = None, message: str = ''):
         if self.total and current is None:
             raise ValueError('Must supply a value for eval!')
 
@@ -241,7 +243,7 @@ class ProgressBar(Composite):
                 current = self.total
 
         if message:
-            message = ' ({})'.format(message)
+            message = f' ({message})'
         elif self._show_default_message:
             current_time = time.monotonic() - self._start_time
             # Write something comforting.
@@ -259,7 +261,7 @@ class ProgressBar(Composite):
         # Print the result.
         result = super(ProgressBar, self).eval(current, message)
         if self._verbose:
-            print('\r{}'.format(result), end='')
+            print(f'\r{result}', end='')
             sys.stdout.flush()
 
     def finish(self):
@@ -271,7 +273,7 @@ class ProgressBar(Composite):
             # Finish the line.
             print('')
 
-    def inc(self, amount=1, message=''):
+    def inc(self, amount: int = 1, message: str = ''):
         if amount < 1:
             raise ValueError('Must increment by 1 or more!')
 
@@ -281,13 +283,13 @@ class ProgressBar(Composite):
         self.eval(self.current + amount, message)
 
 
-class ProgressBarIterator(object):
+class ProgressBarIterator:
     """
     An iterable version of ProgressBar.
     """
 
-    def __init__(self, iterable, total=None, verbose=True, show_default_message=True, is_lying=False,
-                 n_per_cycle=None):
+    def __init__(self, iterable, total: Optional[int] = None, verbose: bool = True, show_default_message: bool = True,
+                 is_lying: bool = False, n_per_cycle: Optional[int] = None):
         """
         Initializes the progress bar iterator.
 

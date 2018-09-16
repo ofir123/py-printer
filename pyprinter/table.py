@@ -2,10 +2,11 @@ from collections import defaultdict
 import csv
 from io import StringIO
 import re
+from typing import Optional, List, Dict
 
-import prettytable
+from prettytable import PrettyTable
 
-import pyprinter
+from pyprinter import Printer, get_printer, get_console_width
 
 
 class Table(object):
@@ -19,8 +20,9 @@ class Table(object):
     ALIGN_RIGHT = 2
     _ALIGN_DICTIONARY = {ALIGN_CENTER: 'c', ALIGN_LEFT: 'l', ALIGN_RIGHT: 'r'}
 
-    def __init__(self, title, data, column_size_map=None, column_size_limit=COLUMN_SIZE_LIMIT,
-                 headers_color=pyprinter.Printer.NORMAL, title_align=ALIGN_CENTER):
+    def __init__(self, title: str, data: List[Dict[str, str]], column_size_map: Optional[Dict[str, int]]=None,
+                 column_size_limit: int = COLUMN_SIZE_LIMIT, headers_color: str = Printer.NORMAL,
+                 title_align: int = ALIGN_CENTER):
         """
         Initializes the table.
 
@@ -40,7 +42,7 @@ class Table(object):
         self._headers_color = headers_color
         self.title_align = title_align
 
-    def pretty_print(self, printer=None, align=ALIGN_CENTER, border=False):
+    def pretty_print(self, printer: Optional[Printer] = None, align: int = ALIGN_CENTER, border: bool = False):
         """
         Pretty prints the table.
 
@@ -49,37 +51,37 @@ class Table(object):
         :param border: Whether to add a border around the table
         """
         if printer is None:
-            printer = pyprinter.get_printer()
+            printer = get_printer()
         table_string = self._get_pretty_table(indent=printer.indents_sum, align=align, border=border).get_string()
         if table_string != '':
             first_line = table_string.splitlines()[0]
-            first_line_length = len(first_line) - len(re.findall(pyprinter.Printer._ANSI_REGEXP, first_line)) * \
-                pyprinter.Printer._ANSI_COLOR_LENGTH
+            first_line_length = len(first_line) - len(re.findall(Printer._ANSI_REGEXP, first_line)) * \
+                Printer._ANSI_COLOR_LENGTH
             if self.title_align == self.ALIGN_CENTER:
-                title = ' ' * (first_line_length // 2 - len(self.title) // 2) + self.title
+                title = '{}{}'.format(' ' * (first_line_length // 2 - len(self.title) // 2), self.title)
             elif self.title_align == self.ALIGN_LEFT:
                 title = self.title
             else:
-                title = ' ' * (first_line_length - len(self.title)) + self.title
+                title = '{}{}'.format(' ' * (first_line_length - len(self.title)), self.title)
             printer.write_line(printer.YELLOW + title)
             # We split the table to lines in order to keep the indentation.
             printer.write_line(table_string)
 
     @property
-    def rows(self):
+    def rows(self) -> List[List[str]]:
         """
         Returns the table rows.
         """
         return [list(d.values()) for d in self.data]
 
     @property
-    def columns(self):
+    def columns(self) -> List[str]:
         """
         Returns the table columns.
         """
         return list(self.data[0].keys())
 
-    def set_column_size_limit(self, column_name, size_limit):
+    def set_column_size_limit(self, column_name: str, size_limit: int):
         """
         Sets the size limit of a specific column.
 
@@ -89,9 +91,9 @@ class Table(object):
         if self._column_size_map.get(column_name):
             self._column_size_map[column_name] = size_limit
         else:
-            raise ValueError('There is no column named {}!'.format(column_name))
+            raise ValueError(f'There is no column named {column_name}!')
 
-    def _get_pretty_table(self, indent=0, align=ALIGN_CENTER, border=False):
+    def _get_pretty_table(self, indent: int = 0, align: int = ALIGN_CENTER, border: bool = False) -> PrettyTable:
         """
         Returns the table format of the scheme, i.e.:
 
@@ -107,15 +109,15 @@ class Table(object):
         rows = self.rows
         columns = self.columns
         # Add the column color.
-        if self._headers_color != pyprinter.Printer.NORMAL and len(rows) > 0 and len(columns) > 0:
+        if self._headers_color != Printer.NORMAL and len(rows) > 0 and len(columns) > 0:
             # We need to copy the lists so that we wont insert colors in the original ones.
             rows[0] = rows[0][:]
             columns = columns[:]
             columns[0] = self._headers_color + columns[0]
             # Write the table itself in NORMAL color.
-            rows[0][0] = pyprinter.Printer.NORMAL + str(rows[0][0])
+            rows[0][0] = Printer.NORMAL + str(rows[0][0])
 
-        table = prettytable.PrettyTable(columns, border=border, max_width=pyprinter.get_console_width() - indent)
+        table = PrettyTable(columns, border=border, max_width=get_console_width() - indent)
         table.align = self._ALIGN_DICTIONARY[align]
 
         for row in rows:
@@ -127,7 +129,7 @@ class Table(object):
 
         return table
 
-    def get_as_html(self):
+    def get_as_html(self) -> str:
         """
         Returns the table object as an HTML string.
 
@@ -135,9 +137,9 @@ class Table(object):
         """
         table_string = self._get_pretty_table().get_html_string()
         title = ('{:^' + str(len(table_string.splitlines()[0])) + '}').format(self.title)
-        return '<center><h1>{0}</h1></center>'.format(title) + table_string
+        return f'<center><h1>{title}</h1></center>{table_string}'
 
-    def get_as_csv(self, output_file_path=None):
+    def get_as_csv(self, output_file_path: Optional[str] = None) -> str:
         """
         Returns the table object as a CSV string.
 
