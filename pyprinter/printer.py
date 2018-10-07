@@ -5,11 +5,6 @@ import sys
 import subprocess
 from typing import List, Optional
 
-try:
-    from IPython.utils.io import stdout
-except ImportError:
-    from sys import stdout
-
 # True if printer is in QT console context.
 _IN_QT = None
 
@@ -26,7 +21,7 @@ class DefaultWriter:
         :param output_file: The output file to write to (default is IPython's io.stdout).
         :param disabled: If True, nothing will be printed.
         """
-        self.output_file = output_file or stdout
+        self.output_file = output_file or sys.stdout
         self.disabled = disabled
 
     def write(self, text: str):
