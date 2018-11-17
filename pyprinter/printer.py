@@ -1,5 +1,4 @@
 import os
-import platform
 import re
 import sys
 import subprocess
@@ -308,15 +307,11 @@ class Printer:
         return super().__getattribute__(item)
 
 
-# The path to the external ANSI printer.
-_ANSI_DIR = os.path.join(os.path.dirname(__file__), 'externals', 'ANSI')
-_ANSI_EXE = 'ansicon.exe'
-
 _printer = None
 # Colors won't work on Linux if TERM is not defined.
 _colors = os.name == 'nt' or os.getenv('TERM')
 
-# If we're not inside IPython, prepare the Windows ANSI terminal (-p is to apply on the parent process).
+# If we're not inside IPython, use pyreadline's console.
 if os.name == 'nt' and sys.stdout == sys.__stdout__:
     try:
         assert __IPYTHON__
@@ -326,13 +321,8 @@ if os.name == 'nt' and sys.stdout == sys.__stdout__:
 
             _printer = Printer(Console())
         except ImportError:
-            try:
-                # Choose the right ANSICON to use, according to the OS version.
-                bitness = 'x64' if platform.architecture()[0] == '64bit' else 'x86'
-                subprocess.Popen([os.path.join(_ANSI_DIR, bitness, _ANSI_EXE), '-p']).wait()
-            except Exception:
-                # If all failed, just print without colors.
-                _colors = False
+            # If all failed, just print without colors.
+            _colors = False
 
 
 def get_printer(colors: bool = True, width_limit: bool = True, disabled: bool = False) -> Printer:

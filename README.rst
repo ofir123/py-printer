@@ -19,7 +19,6 @@ Usage
 | Just create a printer instance, pick your favorite colors and get to work!
 | py-printer supports all ANSI colors, and crazy encodings!
 | It also calculates the console width in order to wrap words properly.
-| And! It even works on a standard Windows console using the awesome ANSICON library.
 |
 
 .. code:: python

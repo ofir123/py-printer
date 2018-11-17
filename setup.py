@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 # Requirements.
 setup_requirements = ['pytest-runner'] if {'pytest', 'test', 'ptr'}.intersection(sys.argv) else []
-install_requirements = ['prettytable', 'ipykernel']
+install_requirements = ['prettytable', 'ipykernel', 'pyreadline; platform_system == "Windows"']
 test_requirements = ['pytest', 'pytest-pep8', 'pytest-flakes']
 
 # Fetch readme content.
@@ -13,13 +13,13 @@ with open('README.rst', 'r') as readme_file:
     readme = readme_file.read()
 
 setup(name='pyprinter',
-      version='1.4.3',
+      version='1.5.0',
       description='Print Everything!',
       long_description=readme,
       author='Ofir Brukner',
       author_email='ofirbrukner@gmail.com',
       url='https://github.com/ofir123/py-printer',
-      download_url='https://github.com/ofir123/py-printer/archive/1.4.3.tar.gz',
+      download_url='https://github.com/ofir123/py-printer/archive/1.5.0.tar.gz',
       license="MIT",
       packages=find_packages(),
       setup_requires=setup_requirements,
