@@ -2,11 +2,10 @@ from collections import defaultdict
 import csv
 from io import StringIO
 import re
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
-from prettytable import PrettyTable
-
-from pyprinter import Printer, get_printer, get_console_width
+from pyprinter import get_console_width, get_printer, Printer
+from pyprinter.external.prettytable import PrettyTable
 
 
 class Table(object):
@@ -20,7 +19,7 @@ class Table(object):
     ALIGN_RIGHT = 2
     _ALIGN_DICTIONARY = {ALIGN_CENTER: 'c', ALIGN_LEFT: 'l', ALIGN_RIGHT: 'r'}
 
-    def __init__(self, title: str, data: List[Dict[str, str]], column_size_map: Optional[Dict[str, int]]=None,
+    def __init__(self, title: str, data: List[Dict[str, str]], column_size_map: Optional[Dict[str, int]] = None,
                  column_size_limit: int = COLUMN_SIZE_LIMIT, headers_color: str = Printer.NORMAL,
                  title_align: int = ALIGN_CENTER):
         """

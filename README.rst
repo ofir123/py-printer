@@ -71,7 +71,7 @@ Usage
     # Use tables.
     from pyprinter import Table
 
-    Table('Test', [[1, 2, 3],['a', 'b', 'c']]).pretty_print()
+    Table('Test', [{'1': 'a', '2': 'b', '3': 'c'}]).pretty_print()
 
 .. image:: docs/images/table.png
 
