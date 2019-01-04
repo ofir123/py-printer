@@ -1,6 +1,6 @@
 import pytest
 
-from pyprinter import printer, Printer, DefaultWriter
+from pyprinter import DefaultWriter, printer, Printer
 
 
 def _prepare_lines(original_lines):

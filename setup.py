@@ -13,13 +13,13 @@ with open('README.rst', 'r') as readme_file:
     readme = readme_file.read()
 
 setup(name='pyprinter',
-      version='1.5.1',
+      version='1.5.2',
       description='Print Everything!',
       long_description=readme,
       author='Ofir Brukner',
       author_email='ofirbrukner@gmail.com',
       url='https://github.com/ofir123/py-printer',
-      download_url='https://github.com/ofir123/py-printer/archive/1.5.1.tar.gz',
+      download_url='https://github.com/ofir123/py-printer/archive/1.5.2.tar.gz',
       license="MIT",
       packages=find_packages(),
       setup_requires=setup_requirements,

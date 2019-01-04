@@ -1,6 +1,6 @@
 import sys
 import time
-from typing import Optional, List
+from typing import List, Optional
 
 from pyprinter import get_console_width
 

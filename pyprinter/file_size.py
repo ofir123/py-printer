@@ -1,6 +1,6 @@
-from typing import Optional, Union, Tuple, TypeVar
+from typing import Optional, Tuple, TypeVar, Union
 
-from pyprinter import Printer, get_printer
+from pyprinter import get_printer, Printer
 
 # An internal type for self-related methods inside FileSize.
 _FileSizeType = TypeVar('_FileSizeType', bound='FileSize')

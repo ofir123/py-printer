@@ -1,7 +1,7 @@
 import os
 import re
-import sys
 import subprocess
+import sys
 from typing import List, Optional
 
 # True if printer is in QT console context.
@@ -66,7 +66,7 @@ class Printer:
 
     # ANSI Color codes constants.
     _ANSI_COLOR_PREFIX = '\x1b'
-    _ANSI_REGEXP = re.compile('\\x1b\[(\d;)?(\d+)m')
+    _ANSI_REGEXP = re.compile('\x1b\\[(\\d;)?(\\d+)m')
     _ANSI_COLOR_CODE = f'{_ANSI_COLOR_PREFIX}[%s%dm'
     _DARK_CODE = '0;'
     _LIGHT_CODE = '1;'
