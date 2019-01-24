@@ -3,4 +3,4 @@ from .file_size import FileSize
 from .progress_bar import ProgressBar, ProgressBarIterator
 from .table import Table
 
-__version__ = '1.5.2'
+__version__ = '1.5.3'
